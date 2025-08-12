@@ -1,5 +1,10 @@
 # Plugin4j
 
+[![JitPack](https://jitpack.io/v/kitakeyos-dev/plugin4j.svg)](https://jitpack.io/#kitakeyos-dev/plugin4j)
+[![Java](https://img.shields.io/badge/Java-8%2B-orange)](https://www.oracle.com/java/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://github.com/kitakeyos-dev/plugin4j/workflows/Build%20and%20Release/badge.svg)](https://github.com/kitakeyos-dev/plugin4j/actions)
+
 A comprehensive and extensible plugin management system for Java applications with hot reload capabilities, dependency resolution, and extension points.
 
 ## ✨ Features
@@ -52,6 +57,41 @@ Plugin4j
 
 ## 🚀 Quick Start
 
+### Maven Dependency
+
+Add JitPack repository and dependency to your `pom.xml`:
+
+```xml
+<repositories>
+    <repository>
+        <id>jitpack.io</id>
+        <url>https://jitpack.io</url>
+    </repository>
+</repositories>
+
+<dependencies>
+    <dependency>
+        <groupId>com.github.kitakeyos-dev</groupId>
+        <artifactId>plugin4j</artifactId>
+        <version>v1.0.0</version>
+    </dependency>
+</dependencies>
+```
+
+### Gradle Dependency
+
+Add to your `build.gradle`:
+
+```gradle
+repositories {
+    maven { url 'https://jitpack.io' }
+}
+
+dependencies {
+    implementation 'com.github.kitakeyos-dev:plugin4j:v1.0.0'
+}
+```
+
 ### 1. Setup Plugin Manager
 
 ```java
@@ -63,7 +103,7 @@ PluginManager pluginManager = new PluginManager(pluginDirectory, eventBus);
 // With update support
 File updateDirectory = new File("plugin-updates");
 PluginManager pluginManager = new PluginManager(
-        pluginDirectory, updateDirectory, eventBus
+    pluginDirectory, updateDirectory, eventBus
 );
 
 // Load and enable all plugins
@@ -264,6 +304,22 @@ project-root/
 - **Comprehensive Logging** - Detailed logging for debugging
 - **Validation** - Pre-flight validation before operations
 
+## 📦 Installation & Usage
+
+### Latest Version
+
+Check the latest version on JitPack: [![](https://jitpack.io/v/kitakeyos-dev/plugin4j.svg)](https://jitpack.io/#kitakeyos-dev/plugin4j)
+
+### Version History
+
+- **v1.0.0** - Initial stable release
+- See [Releases](https://github.com/kitakeyos-dev/plugin4j/releases) for full changelog
+
+### Requirements
+
+- Java 8 or higher
+- Maven 3.6+ or Gradle 6.0+ (for building from source)
+
 ## 🔧 Configuration
 
 ### Hot Reload Configuration
@@ -374,19 +430,19 @@ Runtime.getRuntime().addShutdownHook(new Thread(() -> {
 // Get system status
 PluginRegistry.RegistryStatus status = pluginManager.getRegistryStatus();
 System.out.println("Total plugins: " + status.getTotal());
-        System.out.println("Enabled: " + status.getEnabled());
-        System.out.println("Failed: " + status.getError());
+System.out.println("Enabled: " + status.getEnabled());
+System.out.println("Failed: " + status.getError());
 
 // Extension point information
-Map<String, ExtensionManager.ExtensionPointInfo> extensionInfo =
-        pluginManager.getExtensionPointsInfo();
+Map<String, ExtensionManager.ExtensionPointInfo> extensionInfo = 
+    pluginManager.getExtensionPointsInfo();
 
 // Update results
 if (pluginManager.isUpdateSupported()) {
-PluginUpdateManager.UpdateResult result =
+    PluginUpdateManager.UpdateResult result = 
         pluginManager.checkAndApplyUpdates();
     System.out.println("Updates applied: " + result.getUpdatedPlugins().size());
-        }
+}
 ```
 
 ## 🤝 Contributing
@@ -396,6 +452,33 @@ PluginUpdateManager.UpdateResult result =
 3. Commit changes: `git commit -m 'Add amazing feature'`
 4. Push to branch: `git push origin feature/amazing-feature`
 5. Open Pull Request
+
+### Building from Source
+
+```bash
+git clone https://github.com/kitakeyos-dev/plugin4j.git
+cd plugin4j
+mvn clean install
+```
+
+### Using Snapshot Versions
+
+To use the latest development version:
+
+```xml
+<dependency>
+    <groupId>com.github.kitakeyos-dev</groupId>
+    <artifactId>plugin4j</artifactId>
+    <version>master-SNAPSHOT</version>
+</dependency>
+```
+
+## 🔗 Links
+
+- **JitPack Repository**: https://jitpack.io/#kitakeyos-dev/plugin4j
+- **GitHub Repository**: https://github.com/kitakeyos-dev/plugin4j
+- **Issues & Bug Reports**: https://github.com/kitakeyos-dev/plugin4j/issues
+- **Releases**: https://github.com/kitakeyos-dev/plugin4j/releases
 
 ## 📄 License
 
