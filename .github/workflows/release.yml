@@ -1,4 +1,4 @@
-name: Build and Package
+name: Build and Release
 
 on:
   push:
@@ -31,10 +31,6 @@ jobs:
     - name: Compile project
       run: mvn clean compile
 
-    - name: Run tests (continue on failure)
-      run: mvn test || echo "Tests failed but continuing..."
-      continue-on-error: true
-
     - name: Package project
       run: mvn package -DskipTests
 
@@ -42,14 +38,74 @@ jobs:
       if: startsWith(github.ref, 'refs/tags/v')
       run: mvn source:jar javadoc:jar
 
-    - name: List generated artifacts
-      run: |
-        echo "Generated artifacts:"
-        ls -la target/*.jar || echo "No JAR files found"
+    - name: List artifacts
+      run: ls -la target/
 
     - name: Upload artifacts
-      if: startsWith(github.ref, 'refs/tags/v')
       uses: actions/upload-artifact@v4
       with:
-        name: plugin4j-release
+        name: plugin4j-artifacts
         path: target/*.jar
+
+  # Job tạo release chỉ chạy khi có tag
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: plugin4j-artifacts
+        path: artifacts/
+
+    - name: Get tag version
+      id: tag
+      run: echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.tag.outputs.version }}
+        name: Plugin4j ${{ steps.tag.outputs.version }}
+        body: |
+          ## 🚀 Plugin4j ${{ steps.tag.outputs.version }}
+          
+          ### 📦 Maven Dependency
+          ```xml
+          <repositories>
+              <repository>
+                  <id>jitpack.io</id>
+                  <url>https://jitpack.io</url>
+              </repository>
+          </repositories>
+          
+          <dependencies>
+              <dependency>
+                  <groupId>com.github.kitakeyos-dev</groupId>
+                  <artifactId>plugin4j</artifactId>
+                  <version>${{ steps.tag.outputs.version }}</version>
+              </dependency>
+          </dependencies>
+          ```
+          
+          ### 🔗 Links
+          - 📚 [Documentation](https://github.com/kitakeyos-dev/plugin4j#readme)
+          - 🏗️ [JitPack](https://jitpack.io/#kitakeyos-dev/plugin4j/${{ steps.tag.outputs.version }})
+          
+          ### ✨ Features
+          - Plugin lifecycle management with dependency resolution
+          - Hot reload with state preservation
+          - Extension points for modular architecture
+          - Event-driven plugin communication
+          - Configuration management
+          - Java 8+ compatibility
+        files: artifacts/*
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
