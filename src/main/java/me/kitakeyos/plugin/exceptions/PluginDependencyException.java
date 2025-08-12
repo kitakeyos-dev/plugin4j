@@ -1,8 +1,11 @@
 package me.kitakeyos.plugin.exceptions;
 
+import lombok.Getter;
+
 /**
  * Thrown when plugin dependencies cannot be resolved
  */
+@Getter
 public class PluginDependencyException extends PluginException {
     private final String dependencyName;
 
@@ -11,7 +14,4 @@ public class PluginDependencyException extends PluginException {
         this.dependencyName = dependencyName;
     }
 
-    public String getDependencyName() {
-        return dependencyName;
-    }
 }

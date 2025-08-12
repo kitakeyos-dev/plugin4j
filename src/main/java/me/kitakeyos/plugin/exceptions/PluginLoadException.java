@@ -1,8 +1,11 @@
 package me.kitakeyos.plugin.exceptions;
 
+import lombok.Getter;
+
 /**
  * Thrown when plugin loading fails
  */
+@Getter
 public class PluginLoadException extends PluginException {
     private final String jarFile;
 
@@ -16,7 +19,4 @@ public class PluginLoadException extends PluginException {
         this.jarFile = jarFile;
     }
 
-    public String getJarFile() {
-        return jarFile;
-    }
 }

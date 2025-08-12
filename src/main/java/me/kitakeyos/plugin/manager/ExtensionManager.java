@@ -1,5 +1,6 @@
 package me.kitakeyos.plugin.manager;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import me.kitakeyos.plugin.api.annotations.Extension;
 import me.kitakeyos.plugin.api.annotations.ExtensionPoint;
@@ -239,7 +240,9 @@ public class ExtensionManager {
     /**
      * Wrapper class for Extension
      */
+    @Getter
     public static class ExtensionWrapper {
+        // Getters
         private final Object instance;
         private final Extension annotation;
         private final Class<?> extensionPointClass;
@@ -255,26 +258,6 @@ public class ExtensionManager {
             this.classLoader = classLoader;
         }
 
-        // Getters
-        public Object getInstance() {
-            return instance;
-        }
-
-        public Extension getAnnotation() {
-            return annotation;
-        }
-
-        public Class<?> getExtensionPointClass() {
-            return extensionPointClass;
-        }
-
-        public String getPluginName() {
-            return pluginName;
-        }
-
-        public ClassLoader getClassLoader() {
-            return classLoader;
-        }
     }
 
     /**

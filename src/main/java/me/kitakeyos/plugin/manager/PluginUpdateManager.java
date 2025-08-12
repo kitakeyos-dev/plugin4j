@@ -108,9 +108,8 @@ public class PluginUpdateManager {
      *
      * @param updateFile Update file to process
      * @return UpdateOperation or null if processing failed
-     * @throws Exception if metadata cannot be loaded
      */
-    private UpdateOperation processUpdateFile(File updateFile) throws Exception {
+    private UpdateOperation processUpdateFile(File updateFile) {
         PluginMetadata updateMetadata;
         try {
             updateMetadata = loader.loadMetadata(updateFile);

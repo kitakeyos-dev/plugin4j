@@ -1,8 +1,11 @@
 package me.kitakeyos.plugin.exceptions;
 
+import lombok.Getter;
+
 /**
  * Base exception for all plugin-related errors
  */
+@Getter
 public class PluginException extends RuntimeException {
     private final String pluginName;
 
@@ -21,10 +24,6 @@ public class PluginException extends RuntimeException {
     public PluginException(String message, String pluginName, Throwable cause) {
         super(message, cause);
         this.pluginName = pluginName;
-    }
-
-    public String getPluginName() {
-        return pluginName;
     }
 
     @Override

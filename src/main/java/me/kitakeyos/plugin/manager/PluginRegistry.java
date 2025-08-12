@@ -1,5 +1,6 @@
 package me.kitakeyos.plugin.manager;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import me.kitakeyos.plugin.api.BasePlugin;
 import me.kitakeyos.plugin.exceptions.PluginStateException;
@@ -320,6 +321,7 @@ public class PluginRegistry {
     /**
      * Registry status data class
      */
+    @Getter
     public static class RegistryStatus {
         private final int total;
         private final int enabled;
@@ -333,26 +335,6 @@ public class PluginRegistry {
             this.disabled = disabled;
             this.loaded = loaded;
             this.error = error;
-        }
-
-        public int getTotal() {
-            return total;
-        }
-
-        public int getEnabled() {
-            return enabled;
-        }
-
-        public int getDisabled() {
-            return disabled;
-        }
-
-        public int getLoaded() {
-            return loaded;
-        }
-
-        public int getError() {
-            return error;
         }
 
         @Override

@@ -1,5 +1,6 @@
 package me.kitakeyos.plugin.manager;
 
+import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 import me.kitakeyos.plugin.api.BasePlugin;
@@ -35,7 +36,7 @@ public class PluginLoader {
 
     /**
      * -- SETTER --
-     *  Set extension manager (called by PluginManager)
+     * Set extension manager (called by PluginManager)
      */
     // Extension manager for handling extension points
     @Setter
@@ -353,7 +354,6 @@ public class PluginLoader {
             String description = props.getProperty("description", "");
             String author = props.getProperty("author", "");
             String mainClass = props.getProperty("main");
-            String apiVersion = props.getProperty("api-version", "1.0");
 
             // Validate required fields
             if (name == null || version == null || mainClass == null) {
@@ -426,7 +426,13 @@ public class PluginLoader {
     /**
      * Custom class loader with better tracking for plugin isolation
      */
+    @Getter
     private static class PluginClassLoader extends URLClassLoader {
+        /**
+         * -- GETTER --
+         *  Gets the name of the plugin this class loader belongs to
+         *
+         */
         private final String pluginName;
 
         /**
@@ -450,20 +456,12 @@ public class PluginLoader {
             super.close();
         }
 
-        /**
-         * Gets the name of the plugin this class loader belongs to
-         *
-         * @return Plugin name
-         */
-        public String getPluginName() {
-            return pluginName;
-        }
     }
 
     /**
      * Container for temporary plugin data
      */
-        private final class TempPluginData {
+    private static final class TempPluginData {
         private final Path tempJarPath;
         private final URLClassLoader classLoader;
         private final long creationTime;
@@ -514,12 +512,12 @@ public class PluginLoader {
                     "creationTime=" + creationTime + ']';
         }
 
-        }
+    }
 
     /**
      * Statistics about temporary files
      */
-        public final class TempFileStats {
+    public static final class TempFileStats {
         private final int fileCount;
         private final long totalSize;
         private final String tempDirectory;
@@ -535,11 +533,11 @@ public class PluginLoader {
             this.tempDirectory = tempDirectory;
         }
 
-            @Override
-            public String toString() {
-                return String.format("TempFileStats{files=%d, size=%d bytes (%.2f MB), dir='%s'}",
-                        fileCount, totalSize, totalSize / 1024.0 / 1024.0, tempDirectory);
-            }
+        @Override
+        public String toString() {
+            return String.format("TempFileStats{files=%d, size=%d bytes (%.2f MB), dir='%s'}",
+                    fileCount, totalSize, totalSize / 1024.0 / 1024.0, tempDirectory);
+        }
 
         public int fileCount() {
             return fileCount;
@@ -568,5 +566,5 @@ public class PluginLoader {
             return Objects.hash(fileCount, totalSize, tempDirectory);
         }
 
-        }
+    }
 }

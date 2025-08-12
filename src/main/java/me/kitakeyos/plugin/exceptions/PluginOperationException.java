@@ -1,8 +1,11 @@
 package me.kitakeyos.plugin.exceptions;
 
+import lombok.Getter;
+
 /**
  * Thrown when plugin operations fail (enable, disable, load, etc.)
  */
+@Getter
 public class PluginOperationException extends PluginException {
     private final PluginOperation operation;
 
@@ -14,10 +17,6 @@ public class PluginOperationException extends PluginException {
     public PluginOperationException(PluginOperation operation, String pluginName, String message) {
         super(String.format("Failed to %s plugin: %s", operation.toString().toLowerCase(), message), pluginName);
         this.operation = operation;
-    }
-
-    public PluginOperation getOperation() {
-        return operation;
     }
 
     public enum PluginOperation {

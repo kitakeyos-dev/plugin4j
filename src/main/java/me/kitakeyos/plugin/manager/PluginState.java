@@ -1,8 +1,11 @@
 package me.kitakeyos.plugin.manager;
 
+import lombok.Getter;
+
 /**
  * Enhanced enumeration of plugin states with additional metadata
  */
+@Getter
 public enum PluginState {
     /**
      * Plugin has been loaded but not yet enabled
@@ -36,33 +39,6 @@ public enum PluginState {
         this.displayName = displayName;
         this.description = description;
         this.active = active;
-    }
-
-    /**
-     * Gets the display name for this state
-     *
-     * @return Human-readable display name
-     */
-    public String getDisplayName() {
-        return displayName;
-    }
-
-    /**
-     * Gets the description for this state
-     *
-     * @return Detailed description of the state
-     */
-    public String getDescription() {
-        return description;
-    }
-
-    /**
-     * Checks if plugin is active in this state
-     *
-     * @return true if plugin is actively running
-     */
-    public boolean isActive() {
-        return active;
     }
 
     /**

@@ -17,7 +17,6 @@ public class PropertiesConfigLoader {
     private static class PropertiesPluginConfig implements PluginConfig {
         private final File configFile;
         private final Properties properties = new Properties();
-        private final Map<String, Object> cache = new ConcurrentHashMap<>();
 
         public PropertiesPluginConfig(File configFile) {
             this.configFile = configFile;
@@ -129,7 +128,6 @@ public class PropertiesConfigLoader {
 
             if (value == null) {
                 properties.remove(key);
-                cache.remove(key);
             } else if (value instanceof List<?>) {
                 List<?> list = (List<?>) value;
                 // Convert list to comma-separated string
@@ -139,10 +137,8 @@ public class PropertiesConfigLoader {
                     sb.append(list.get(i).toString());
                 }
                 properties.setProperty(key, sb.toString());
-                cache.put(key, value);
             } else {
                 properties.setProperty(key, value.toString());
-                cache.put(key, value);
             }
         }
 
@@ -179,7 +175,6 @@ public class PropertiesConfigLoader {
         @Override
         public void reload() {
             properties.clear();
-            cache.clear();
 
             if (configFile.exists()) {
                 try (FileInputStream fis = new FileInputStream(configFile);

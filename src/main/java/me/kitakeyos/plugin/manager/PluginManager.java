@@ -43,6 +43,7 @@ public class PluginManager {
     private final DependencyResolver dependencyResolver;
     @Getter
     private final ExtensionManager extensionManager;
+    @Getter
     private PluginUpdateManager updateManager;
 
     // Plugin metadata cache
@@ -120,15 +121,6 @@ public class PluginManager {
     public void setUpdateManager(PluginUpdateManager updateManager) {
         this.updateManager = updateManager;
         log.info("Update manager configured: {}", updateManager.getClass().getSimpleName());
-    }
-
-    /**
-     * Gets the current update manager
-     *
-     * @return Current update manager or null if not configured
-     */
-    public PluginUpdateManager getUpdateManager() {
-        return updateManager;
     }
 
     // =================== CORE PLUGIN LIFECYCLE ===================

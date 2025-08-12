@@ -1,10 +1,12 @@
 package me.kitakeyos.plugin.exceptions;
 
+import lombok.Getter;
 import me.kitakeyos.plugin.manager.PluginState;
 
 /**
  * Thrown when plugin state transitions are invalid
  */
+@Getter
 public class PluginStateException extends PluginException {
     private final PluginState fromState;
     private final PluginState toState;
@@ -15,11 +17,4 @@ public class PluginStateException extends PluginException {
         this.toState = toState;
     }
 
-    public PluginState getFromState() {
-        return fromState;
-    }
-
-    public PluginState getToState() {
-        return toState;
-    }
 }
