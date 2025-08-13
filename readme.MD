@@ -169,7 +169,6 @@ description=Example plugin
 author=Developer
 main=com.example.MyPlugin
 dependencies=RequiredPlugin,AnotherPlugin
-api-version=1.0
 ```
 
 ## 🔧 Advanced Usage
@@ -235,7 +234,7 @@ for (CommandProcessor processor : processors) {
 ### State Preservation in Hot Reload
 
 ```java
-public class StatefulPlugin extends BasePlugin implements StatefulPlugin {
+public class MyStatefulPlugin extends BasePlugin implements StatefulPlugin {
     private Map<String, String> inMemoryData = new HashMap<>();
     
     @Override
