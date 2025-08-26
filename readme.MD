@@ -71,11 +71,11 @@ Add JitPack repository and dependency to your `pom.xml`:
 </repositories>
 
 <dependencies>
-    <dependency>
-        <groupId>com.github.kitakeyos-dev</groupId>
-        <artifactId>plugin4j</artifactId>
-        <version>v1.0.1</version>
-    </dependency>
+<dependency>
+    <groupId>com.github.kitakeyos-dev</groupId>
+    <artifactId>plugin4j</artifactId>
+    <version>v1.0.1</version>
+</dependency>
 </dependencies>
 ```
 
@@ -116,23 +116,23 @@ PluginLoader loader = new PluginLoader();
 
 // Create update manager with default configuration
 PluginUpdateManager updateManager = new PluginUpdateManager(
-    pluginDirectory, updateDirectory, loader
+        pluginDirectory, updateDirectory, loader
 );
 
 // Check for available updates
 UpdateScanResult scanResult = updateManager.scanForUpdates();
 if (scanResult.hasUpdates()) {
-    System.out.println("Found " + scanResult.getAvailableUpdates().size() + " updates");
-    
-    // Apply all updates
-    UpdateResult result = updateManager.applyAllUpdates();
+        System.out.println("Found " + scanResult.getAvailableUpdates().size() + " updates");
+
+// Apply all updates
+UpdateResult result = updateManager.applyAllUpdates();
     System.out.println("Applied " + result.getUpdatedPlugins().size() + " updates");
-}
+        }
 
 // Apply specific updates
 List<UpdateInfo> selectedUpdates = scanResult.getAvailableUpdates().stream()
-    .filter(update -> "MyPlugin".equals(update.getPluginName()))
-    .toList();
+        .filter(update -> "MyPlugin".equals(update.getPluginName()))
+        .toList();
 UpdateResult result = updateManager.applyUpdates(selectedUpdates);
 ```
 
@@ -140,40 +140,40 @@ UpdateResult result = updateManager.applyUpdates(selectedUpdates);
 
 ```java
 @Plugin(
-    name = "MyPlugin",
-    version = "1.0.0",
-    description = "Example plugin",
-    author = "Developer",
-    dependencies = {"RequiredPlugin"}
+        name = "MyPlugin",
+        version = "1.0.0",
+        description = "Example plugin",
+        author = "Developer",
+        dependencies = {"RequiredPlugin"}
 )
 public class MyPlugin extends BasePlugin {
-    
+
     @Override
     public void onLoad() {
         getContext().getConfig().set("initialized", true);
         System.out.println("Plugin loaded!");
     }
-    
+
     @Override
     public void onEnable() {
         // Schedule repeating task
         getContext().scheduleRepeatingTask(() -> {
             System.out.println("Periodic task running");
         }, 1000, 5000);
-        
+
         System.out.println("Plugin enabled!");
     }
-    
+
     @EventHandler(priority = EventPriority.HIGH)
     public void onCustomEvent(CustomEvent event) {
         System.out.println("Received event: " + event);
     }
-    
+
     @Override
     public void onDisable() {
         System.out.println("Plugin disabled!");
     }
-    
+
     @Override
     public void onUnload() {
         System.out.println("Plugin unloaded!");
@@ -201,16 +201,16 @@ import me.kitakeyos.plugin.config.UpdateConfig;
 
 // Create custom update configuration
 UpdateConfig customConfig = new UpdateConfig(
-    false,  // Don't check version constraints (force update)
-    true,   // Create backups
-    true,   // Auto cleanup backups
-    true,   // Cleanup update files
-    10 * 24 * 60 * 60 * 1000L  // Keep backups for 10 days
+        false,  // Don't check version constraints (force update)
+        true,   // Create backups
+        true,   // Auto cleanup backups
+        true,   // Cleanup update files
+        10 * 24 * 60 * 60 * 1000L  // Keep backups for 10 days
 );
 
 // Create update manager with custom config
 PluginUpdateManager updateManager = new PluginUpdateManager(
-    pluginDirectory, updateDirectory, loader, customConfig
+        pluginDirectory, updateDirectory, loader, customConfig
 );
 
 // Or use predefined configurations
@@ -224,38 +224,38 @@ UpdateConfig noBackupConfig = UpdateConfig.noBackupConfig();     // No backups
 ```java
 // Setup progress monitoring
 updateManager.setProgressCallback(progress -> {
-    switch (progress.getType()) {
+        switch (progress.getType()) {
         case SCANNING:
-            System.out.println("Scanning for updates...");
+        System.out.println("Scanning for updates...");
             break;
-        case APPLYING:
-            System.out.println("Applying " + progress.getTotal() + " updates...");
-            break;
+                    case APPLYING:
+        System.out.println("Applying " + progress.getTotal() + " updates...");
+        break;
         case PROCESSING:
-            System.out.printf("Processing %s (%d/%d)\n", 
-                progress.getCurrentPlugin(), 
+        System.out.printf("Processing %s (%d/%d)\n",
+                          progress.getCurrentPlugin(), 
                 progress.getCurrent(), 
                 progress.getTotal());
-            break;
+        break;
         case COMPLETED:
-            System.out.println("Update completed!");
+        System.out.println("Update completed!");
             break;
-    }
-});
+                    }
+                    });
 
 // Setup log callback
-updateManager.setLogCallback(message -> {
-    System.out.println("[UPDATE] " + message);
+                    updateManager.setLogCallback(message -> {
+        System.out.println("[UPDATE] " + message);
 });
 
 // Async update
 CompletableFuture<UpdateResult> future = updateManager.applyAllUpdatesAsync();
 future.thenAccept(result -> {
-    System.out.println("Update finished: " + result);
+        System.out.println("Update finished: " + result);
 }).exceptionally(throwable -> {
-    System.err.println("Update failed: " + throwable.getMessage());
-    return null;
-});
+        System.err.println("Update failed: " + throwable.getMessage());
+        return null;
+        });
 ```
 
 ### Backup Management
@@ -264,16 +264,16 @@ future.thenAccept(result -> {
 // List available backups
 List<BackupInfo> backups = updateManager.listBackups();
 backups.forEach(backup -> {
-    System.out.println("Plugin: " + backup.getPluginName() + 
-                      ", Timestamp: " + backup.getTimestamp());
-});
+        System.out.println("Plugin: " + backup.getPluginName() +
+        ", Timestamp: " + backup.getTimestamp());
+        });
 
 // Rollback a plugin
 boolean success = updateManager.rollbackPlugin("MyPlugin");
 if (success) {
-    System.out.println("Plugin rolled back successfully");
+        System.out.println("Plugin rolled back successfully");
 } else {
-    System.out.println("Rollback failed - no backup found");
+        System.out.println("Rollback failed - no backup found");
 }
 
 // Cleanup old backups
@@ -283,7 +283,7 @@ System.out.println("Cleaned up " + cleaned + " old backups");
 // Get update statistics
 UpdateStats stats = updateManager.getUpdateStats();
 System.out.println("Available updates: " + stats.getAvailableUpdates());
-System.out.println("Backup count: " + stats.getBackupCount());
+        System.out.println("Backup count: " + stats.getBackupCount());
 ```
 
 ### Integration Example
@@ -293,37 +293,37 @@ public class ApplicationWithPlugins {
     public static void main(String[] args) {
         File pluginDir = new File("plugins");
         File updateDir = new File("updates");
-        
+
         // Initialize components
         EventBus eventBus = new EventBus();
         PluginLoader loader = new PluginLoader();
         PluginManager pluginManager = new PluginManager(pluginDir, eventBus);
-        
+
         // Setup update management
         PluginUpdateManager updateManager = new PluginUpdateManager(
-            pluginDir, updateDir, loader, UpdateConfig.defaultConfig()
+                pluginDir, updateDir, loader, UpdateConfig.defaultConfig()
         );
-        
+
         // Set up progress monitoring
         updateManager.setProgressCallback(progress -> {
             System.out.println("Update progress: " + progress.getMessage());
         });
-        
+
         // Check and apply updates before loading plugins
         System.out.println("Checking for plugin updates...");
         UpdateResult updateResult = updateManager.applyAllUpdates();
-        
+
         if (updateResult.hasUpdates()) {
             System.out.println("Applied " + updateResult.getUpdatedPlugins().size() + " updates");
         }
-        
+
         // Load and enable all plugins
         pluginManager.loadAllPlugins();
         pluginManager.enableAllPlugins();
-        
-        System.out.println("Application started with " + 
-            pluginManager.getLoadedPlugins().size() + " plugins");
-        
+
+        System.out.println("Application started with " +
+                pluginManager.getLoadedPlugins().size() + " plugins");
+
         // Graceful shutdown
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             updateManager.shutdown();
@@ -346,12 +346,63 @@ hotReloadManager.startWatching();
 // Manual hot reload
 CompletableFuture<ReloadResult> result = hotReloadManager.hotReload("MyPlugin");
 result.thenAccept(reloadResult -> {
-    if (reloadResult.isSuccess()) {
+        if (reloadResult.isSuccess()) {
         System.out.println("Hot reload successful!");
     } else {
-        System.err.println("Hot reload failed: " + reloadResult.getErrorMessage());
+            System.err.println("Hot reload failed: " + reloadResult.getErrorMessage());
+        }
+        });
+```
+
+### Event System
+
+```java
+// Define custom event
+public class CustomEvent {
+    private final String message;
+    private final long timestamp;
+    
+    public CustomEvent(String message) {
+        this.message = message;
+        this.timestamp = System.currentTimeMillis();
     }
-});
+    
+    public String getMessage() { return message; }
+    public long getTimestamp() { return timestamp; }
+}
+
+// In plugin - Handle events
+@EventHandler(priority = EventPriority.HIGH)
+public void onCustomEvent(CustomEvent event) {
+    System.out.println("Received event: " + event.getMessage());
+}
+
+// In plugin - Fire events
+public class MyPlugin extends BasePlugin {
+    @Override
+    public void onEnable() {
+        // Fire event synchronously
+        getContext().getEventBus().fireEventSync(new CustomEvent("Plugin enabled"));
+        
+        // Fire event asynchronously
+        getContext().getEventBus().fireEventAsync(new CustomEvent("Async event"));
+        
+        // Schedule task that fires events
+        getContext().scheduleRepeatingTask(() -> {
+            getContext().getEventBus().fireEventSync(new CustomEvent("Periodic event"));
+        }, 1000, 5000);
+    }
+    
+    // Method to fire custom events
+    public void notifyOtherPlugins(String message) {
+        getContext().getEventBus().fireEventSync(new CustomEvent(message));
+    }
+}
+
+// From application code - Fire events to all plugins
+EventBus eventBus = new EventBus();
+eventBus.fireEventSync(new CustomEvent("Application event"));
+eventBus.fireEventAsync(new CustomEvent("Async application event"));
 ```
 
 ### Extension Points
@@ -382,11 +433,34 @@ public class HelpCommandProcessor implements CommandProcessor {
     }
 }
 
-// Use extensions
+// Use extensions in application
 List<CommandProcessor> processors = pluginManager.getExtensions(CommandProcessor.class);
 for (CommandProcessor processor : processors) {
     if (processor.processCommand("help", new String[]{})) {
         break;
+    }
+}
+```
+
+### State Preservation in Hot Reload
+
+```java
+public class MyStatefulPlugin extends BasePlugin implements StatefulPlugin {
+    private Map<String, String> inMemoryData = new HashMap<>();
+    
+    @Override
+    public Map<String, Object> saveState() {
+        Map<String, Object> state = new HashMap<>();
+        state.put("inMemoryData", inMemoryData);
+        state.put("lastProcessedTime", System.currentTimeMillis());
+        return state;
+    }
+    
+    @Override
+    public void loadState(Map<String, Object> state) {
+        inMemoryData = (Map<String, String>) state.get("inMemoryData");
+        Long lastTime = (Long) state.get("lastProcessedTime");
+        System.out.println("Restored state from: " + new Date(lastTime));
     }
 }
 ```
@@ -552,6 +626,23 @@ public void testPluginUpdates() {
     assertNotNull(result);
     
     updateManager.shutdown();
+}
+
+@Test
+public void testEventSystem() {
+    File tempDir = Files.createTempDirectory("test-plugins").toFile();
+    EventBus eventBus = new EventBus();
+    PluginManager manager = new PluginManager(tempDir, eventBus);
+    
+    // Load and enable plugins
+    manager.loadAllPlugins();
+    manager.enableAllPlugins();
+    
+    // Fire test event
+    eventBus.fireEventSync(new CustomEvent("Test event"));
+    
+    // Verify event was handled (check logs or plugin state)
+    manager.shutdown();
 }
 ```
 
