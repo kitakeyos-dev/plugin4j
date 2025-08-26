@@ -16,12 +16,10 @@ import me.kitakeyos.plugin.scheduler.TaskScheduler;
 
 import java.io.File;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Simplified Plugin Manager focused on core lifecycle management
- * Delegates specialized functionality to dedicated managers
  */
 @Slf4j
 public class PluginManager {
@@ -43,28 +41,12 @@ public class PluginManager {
     private final DependencyResolver dependencyResolver;
     @Getter
     private final ExtensionManager extensionManager;
-    @Getter
-    private PluginUpdateManager updateManager;
 
     // Plugin metadata cache
     private final Map<String, PluginMetadata> pluginMetadata = new ConcurrentHashMap<>();
 
     /**
-     * Initializes plugin manager with full update support
-     *
-     * @param pluginDirectory Directory containing plugin JAR files
-     * @param updateDirectory Directory for plugin updates
-     * @param eventBus        Event bus for plugin communication
-     */
-    public PluginManager(File pluginDirectory, File updateDirectory, EventBus eventBus) {
-        this(pluginDirectory, eventBus);
-        this.updateManager = new PluginUpdateManager(pluginDirectory, updateDirectory, loader);
-        ensureDirectoriesExist(updateDirectory);
-        log.info("PluginManager initialized with update support");
-    }
-
-    /**
-     * Initializes plugin manager without update support
+     * Initializes plugin manager
      *
      * @param pluginDirectory Directory containing plugin JAR files
      * @param eventBus        Event bus for plugin communication
@@ -93,11 +75,14 @@ public class PluginManager {
     }
 
     /**
+     * Alternative constructor without event bus for minimal setups
+     */
+    public PluginManager(File pluginDirectory) {
+        this(pluginDirectory, null);
+    }
+
+    /**
      * Validates and returns the plugin directory
-     *
-     * @param pluginDirectory Directory to validate
-     * @return Validated plugin directory
-     * @throws IllegalArgumentException if directory is null
      */
     private File validatePluginDirectory(File pluginDirectory) {
         return Objects.requireNonNull(pluginDirectory, "Plugin directory cannot be null");
@@ -105,42 +90,21 @@ public class PluginManager {
 
     /**
      * Creates and configures the config manager
-     *
-     * @return Configured ConfigManager instance
      */
     private ConfigManager createConfigManager() {
         File configDirectory = new File(pluginDirectory.getParent(), "plugin-data");
         return new ConfigManager(configDirectory);
     }
 
-    /**
-     * Sets up the update manager for plugin updates
-     *
-     * @param updateManager The update manager instance to use
-     */
-    public void setUpdateManager(PluginUpdateManager updateManager) {
-        this.updateManager = updateManager;
-        log.info("Update manager configured: {}", updateManager.getClass().getSimpleName());
-    }
-
     // =================== CORE PLUGIN LIFECYCLE ===================
 
     /**
      * Loads all plugins from plugin directory with dependency resolution
-     * Applies updates first, then loads plugins in dependency order
      */
     public void loadAllPlugins() {
         log.info("Starting plugin loading process...");
 
         try {
-            // Apply updates first if update manager is available
-            if (updateManager != null) {
-                PluginUpdateManager.UpdateResult updateResult = updateManager.checkAndApplyUpdates();
-                logUpdateResults(updateResult);
-            } else {
-                log.debug("Skipping plugin updates - update manager not available");
-            }
-
             // Discover and validate plugins
             Map<String, File> pluginFiles = discoverPlugins();
             if (pluginFiles.isEmpty()) {
@@ -180,10 +144,6 @@ public class PluginManager {
 
     /**
      * Loads a single plugin with full lifecycle setup
-     *
-     * @param pluginName Name of the plugin
-     * @param pluginFile Plugin JAR file
-     * @return true if loaded successfully
      */
     private boolean loadSinglePlugin(String pluginName, File pluginFile) {
         try {
@@ -220,6 +180,30 @@ public class PluginManager {
         } catch (Exception e) {
             log.error("Failed to load plugin {}: {}", pluginName, e.getMessage());
             return false;
+        }
+    }
+
+    /**
+     * Loads a specific plugin by name from the plugin directory
+     *
+     * @param pluginName Name of the plugin to load
+     * @return true if loaded successfully
+     * @throws PluginNotFoundException if plugin file is not found
+     * @throws PluginOperationException if loading fails
+     */
+    public boolean loadPlugin(String pluginName) {
+        log.info("Loading specific plugin: {}", pluginName);
+
+        // Find plugin file
+        File pluginFile = findPluginFile(pluginName);
+        if (pluginFile == null) {
+            throw new PluginNotFoundException("Plugin file not found: " + pluginName);
+        }
+
+        try {
+            return loadSinglePlugin(pluginName, pluginFile);
+        } catch (Exception e) {
+            throw new PluginOperationException(PluginOperation.ENABLE, pluginName, e);
         }
     }
 
@@ -271,10 +255,6 @@ public class PluginManager {
 
     /**
      * Enables a specific plugin by name
-     *
-     * @param pluginName Name of the plugin to enable
-     * @throws PluginNotFoundException  if plugin is not found
-     * @throws PluginOperationException if enable operation fails
      */
     public void enablePlugin(String pluginName) {
         BasePlugin plugin = getPluginOrThrow(pluginName);
@@ -308,25 +288,18 @@ public class PluginManager {
             try {
                 if (eventBus != null) {
                     eventBus.unregister(plugin);
-                } else {
-                    log.debug("Skipping event bus unregistration - event bus not available");
                 }
             } catch (Exception cleanupException) {
                 log.warn("Failed to cleanup after enable failure for {}: {}",
                         pluginName, cleanupException.getMessage());
             }
 
-            throw new PluginOperationException(
-                    PluginOperation.ENABLE, pluginName, e);
+            throw new PluginOperationException(PluginOperation.ENABLE, pluginName, e);
         }
     }
 
     /**
      * Disables a specific plugin by name
-     *
-     * @param pluginName Name of the plugin to disable
-     * @throws PluginNotFoundException  if plugin is not found
-     * @throws PluginOperationException if disable operation fails
      */
     public void disablePlugin(String pluginName) {
         BasePlugin plugin = getPluginOrThrow(pluginName);
@@ -361,17 +334,12 @@ public class PluginManager {
             // Set error state but don't re-register with event bus
             registry.setPluginState(pluginName, PluginState.ERROR);
 
-            throw new PluginOperationException(
-                    PluginOperation.DISABLE, pluginName, e);
+            throw new PluginOperationException(PluginOperation.DISABLE, pluginName, e);
         }
     }
 
     /**
      * Reloads a specific plugin (disable, unload, load, enable)
-     *
-     * @param pluginName Name of the plugin to reload
-     * @throws PluginNotFoundException  if plugin is not found
-     * @throws PluginOperationException if reload operation fails
      */
     public void reloadPlugin(String pluginName) {
         log.info("Reloading plugin: {}", pluginName);
@@ -417,26 +385,37 @@ public class PluginManager {
         } catch (PluginOperationException e) {
             throw e;
         } catch (Exception e) {
-            throw new PluginOperationException(
-                    PluginOperation.RELOAD, pluginName, e);
+            throw new PluginOperationException(PluginOperation.RELOAD, pluginName, e);
         }
     }
 
     /**
      * Unloads a plugin (calls onUnload and removes from registry)
-     *
-     * @param pluginName Name of the plugin to unload
      */
-    private void unloadPlugin(String pluginName) {
+    public void unloadPlugin(String pluginName) {
         BasePlugin plugin = registry.getPlugin(pluginName);
         if (plugin != null) {
             try {
+                // Disable first if enabled
+                if (registry.isEnabled(pluginName)) {
+                    disablePlugin(pluginName);
+                }
+
+                // Call unload hook
                 plugin.onUnload();
+
+                // Clean up loader resources
+                loader.cleanupPlugin(pluginName);
+
             } catch (Exception e) {
                 log.warn("Error during plugin unload for {}: {}", pluginName, e.getMessage());
             }
+
+            // Remove from registry
             registry.unregisterPlugin(pluginName);
-            log.debug("Unloaded plugin: {}", pluginName);
+            pluginMetadata.remove(pluginName);
+
+            log.info("Unloaded plugin: {}", pluginName);
         }
     }
 
@@ -444,9 +423,6 @@ public class PluginManager {
 
     /**
      * Gets a plugin instance by name
-     *
-     * @param name Name of the plugin
-     * @return BasePlugin instance or null if not found
      */
     public BasePlugin getPlugin(String name) {
         return registry.getPlugin(name);
@@ -454,10 +430,6 @@ public class PluginManager {
 
     /**
      * Gets a plugin instance by name, throwing exception if not found
-     *
-     * @param name Name of the plugin
-     * @return BasePlugin instance
-     * @throws PluginNotFoundException if plugin is not found
      */
     public BasePlugin getPluginOrThrow(String name) {
         BasePlugin plugin = registry.getPlugin(name);
@@ -469,8 +441,6 @@ public class PluginManager {
 
     /**
      * Gets all loaded plugins
-     *
-     * @return Collection of all loaded BasePlugin instances
      */
     public Collection<BasePlugin> getLoadedPlugins() {
         return registry.getAllPlugins();
@@ -478,9 +448,6 @@ public class PluginManager {
 
     /**
      * Gets metadata for a specific plugin
-     *
-     * @param name Name of the plugin
-     * @return PluginMetadata or null if not found
      */
     public PluginMetadata getPluginMetadata(String name) {
         return pluginMetadata.get(name);
@@ -488,9 +455,6 @@ public class PluginManager {
 
     /**
      * Checks if a plugin is loaded
-     *
-     * @param name Name of the plugin
-     * @return true if plugin is loaded
      */
     public boolean isPluginLoaded(String name) {
         return registry.isPluginLoaded(name);
@@ -498,9 +462,6 @@ public class PluginManager {
 
     /**
      * Gets plugin names by state
-     *
-     * @param state State to filter by
-     * @return List of plugin names in the specified state
      */
     public List<String> getPluginsByState(PluginState state) {
         return registry.getPluginsByState(state);
@@ -508,21 +469,40 @@ public class PluginManager {
 
     /**
      * Gets registry status summary
-     *
-     * @return RegistryStatus with counts and information
      */
     public PluginRegistry.RegistryStatus getRegistryStatus() {
         return registry.getStatus();
+    }
+
+    /**
+     * Gets list of all available plugin files in directory
+     */
+    public List<String> getAvailablePlugins() {
+        File[] jarFiles = pluginDirectory.listFiles((dir, name) -> name.endsWith(".jar"));
+        if (jarFiles == null) {
+            return Collections.emptyList();
+        }
+
+        List<String> available = new ArrayList<>();
+        for (File jarFile : jarFiles) {
+            try {
+                PluginMetadata metadata = loader.loadMetadata(jarFile);
+                available.add(metadata.getName());
+            } catch (Exception e) {
+                log.debug("Failed to read metadata from {}: {}", jarFile.getName(), e.getMessage());
+                // Add filename without extension as fallback
+                String name = jarFile.getName().replace(".jar", "");
+                available.add(name);
+            }
+        }
+
+        return available;
     }
 
     // =================== EXTENSION POINT MANAGEMENT ===================
 
     /**
      * Gets all extensions for Extension Point
-     *
-     * @param extensionPointClass Extension Point interface class
-     * @param <T>                 Extension Point type
-     * @return List of extension instances
      */
     public <T> List<T> getExtensions(Class<T> extensionPointClass) {
         return extensionManager.getExtensions(extensionPointClass);
@@ -530,10 +510,6 @@ public class PluginManager {
 
     /**
      * Gets first extension (highest priority)
-     *
-     * @param extensionPointClass Extension Point interface class
-     * @param <T>                 Extension Point type
-     * @return Optional containing first extension or empty
      */
     public <T> Optional<T> getExtension(Class<T> extensionPointClass) {
         return extensionManager.getExtension(extensionPointClass);
@@ -541,11 +517,6 @@ public class PluginManager {
 
     /**
      * Gets extensions by plugin
-     *
-     * @param extensionPointClass Extension Point interface class
-     * @param pluginName          Name of the plugin
-     * @param <T>                 Extension Point type
-     * @return List of extensions from specified plugin
      */
     public <T> List<T> getExtensionsByPlugin(Class<T> extensionPointClass, String pluginName) {
         return extensionManager.getExtensionsByPlugin(extensionPointClass, pluginName);
@@ -553,8 +524,6 @@ public class PluginManager {
 
     /**
      * Gets information about Extension Points
-     *
-     * @return Map of Extension Point information
      */
     public Map<String, ExtensionManager.ExtensionPointInfo> getExtensionPointsInfo() {
         return extensionManager.getExtensionPointsInfo();
@@ -562,65 +531,15 @@ public class PluginManager {
 
     /**
      * Registers Extension Point manually (if not from plugin)
-     *
-     * @param extensionPointClass Extension Point interface class
      */
     public void registerExtensionPoint(Class<?> extensionPointClass) {
         extensionManager.registerExtensionPoint(extensionPointClass);
-    }
-
-    // =================== UPDATE MANAGEMENT ===================
-
-    /**
-     * Checks and applies plugin updates synchronously
-     *
-     * @return UpdateResult containing update information
-     * @throws UnsupportedOperationException if update manager is not available
-     */
-    public PluginUpdateManager.UpdateResult checkAndApplyUpdates() {
-        if (updateManager == null) {
-            throw new UnsupportedOperationException("Plugin updates not supported - no update manager available");
-        }
-        return updateManager.checkAndApplyUpdates();
-    }
-
-    /**
-     * Checks and applies plugin updates asynchronously
-     *
-     * @return CompletableFuture with UpdateResult
-     * @throws UnsupportedOperationException if update manager is not available
-     */
-    public CompletableFuture<PluginUpdateManager.UpdateResult> checkAndApplyUpdatesAsync() {
-        if (updateManager == null) {
-            throw new UnsupportedOperationException("Plugin updates not supported - no update manager available");
-        }
-        return updateManager.checkAndApplyUpdatesAsync();
-    }
-
-    /**
-     * Checks if update functionality is available
-     *
-     * @return true if updates are supported
-     */
-    public boolean isUpdateSupported() {
-        return updateManager != null;
-    }
-
-    /**
-     * Checks if event bus functionality is available
-     *
-     * @return true if event bus is available
-     */
-    public boolean isEventBusAvailable() {
-        return eventBus != null;
     }
 
     // =================== HELPER METHODS ===================
 
     /**
      * Discovers plugins and loads their metadata
-     *
-     * @return Map of plugin names to JAR files
      */
     private Map<String, File> discoverPlugins() {
         log.debug("Discovering plugins in: {}", pluginDirectory.getAbsolutePath());
@@ -654,9 +573,34 @@ public class PluginManager {
     }
 
     /**
+     * Finds plugin file by plugin name
+     */
+    private File findPluginFile(String pluginName) {
+        File[] jarFiles = pluginDirectory.listFiles((dir, name) -> name.endsWith(".jar"));
+        if (jarFiles == null) {
+            return null;
+        }
+
+        for (File jarFile : jarFiles) {
+            try {
+                PluginMetadata metadata = loader.loadMetadata(jarFile);
+                if (pluginName.equals(metadata.getName())) {
+                    return jarFile;
+                }
+            } catch (Exception e) {
+                log.debug("Could not load metadata from {}: {}", jarFile.getName(), e.getMessage());
+                // Try matching filename without extension
+                String fileName = jarFile.getName().replace(".jar", "");
+                if (pluginName.equals(fileName)) {
+                    return jarFile;
+                }
+            }
+        }
+        return null;
+    }
+
+    /**
      * Ensures required directories exist
-     *
-     * @param directories Directories to create if they don't exist
      */
     private void ensureDirectoriesExist(File... directories) {
         for (File directory : directories) {
@@ -667,22 +611,10 @@ public class PluginManager {
     }
 
     /**
-     * Logs update results
-     *
-     * @param result Update result to log
+     * Checks if event bus functionality is available
      */
-    private void logUpdateResults(PluginUpdateManager.UpdateResult result) {
-        if (result.hasUpdates()) {
-            log.info("Applied {} plugin updates: {}",
-                    result.getUpdatedPlugins().size(), result.getUpdatedPlugins());
-        }
-        if (result.hasFailures()) {
-            log.warn("Failed to process {} plugin updates: {}",
-                    result.getFailedUpdates().size(), result.getFailedUpdates());
-        }
-        if (!result.hasUpdates() && !result.hasFailures()) {
-            log.debug("No plugin updates found");
-        }
+    public boolean isEventBusAvailable() {
+        return eventBus != null;
     }
 
     // =================== SHUTDOWN ===================
@@ -713,9 +645,6 @@ public class PluginManager {
 
             // Cleanup managers
             extensionManager.clearAll();
-            if (updateManager != null) {
-                updateManager.shutdown();
-            }
             scheduler.shutdown();
             loader.cleanupAllTempFiles();
 

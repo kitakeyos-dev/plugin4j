@@ -7,7 +7,7 @@
 
 A comprehensive and extensible plugin management system for Java applications with hot reload capabilities, dependency resolution, and extension points.
 
-## ✨ Features
+## Features
 
 ### Core Plugin Management
 - **Plugin Lifecycle Management** - Complete plugin loading, enabling, disabling, and unloading
@@ -20,7 +20,7 @@ A comprehensive and extensible plugin management system for Java applications wi
 - **Extension Points** - Modular extension system for plugin communication
 - **Event System** - Annotation-based event handling with priority support
 - **Task Scheduler** - Built-in task scheduling for plugins
-- **Update Management** - Automatic plugin updates with rollback capabilities
+- **Standalone Update Management** - Independent plugin update system with flexible options
 - **File Watching** - Automatic reload detection when plugin files change
 
 ### Safety & Reliability
@@ -29,7 +29,7 @@ A comprehensive and extensible plugin management system for Java applications wi
 - **Backup System** - Automatic backups before plugin updates
 - **Validation** - Comprehensive plugin validation before loading
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 Plugin4j
@@ -40,6 +40,8 @@ Plugin4j
 │   └── DependencyResolver (Dependency ordering)
 ├── Extension System
 │   └── ExtensionManager (Extension points & extensions)
+├── Update System (Standalone)
+│   └── PluginUpdateManager (Independent update handling)
 ├── Hot Reload System
 │   ├── HotReloadManager (Live reloading)
 │   ├── PluginStateManager (State preservation)
@@ -47,15 +49,14 @@ Plugin4j
 ├── Support Systems
 │   ├── EventBus (Event handling)
 │   ├── TaskScheduler (Scheduled tasks)
-│   ├── ConfigManager (Plugin configuration)
-│   └── PluginUpdateManager (Updates & rollback)
+│   └── ConfigManager (Plugin configuration)
 └── API
     ├── BasePlugin (Plugin base class)
     ├── PluginContext (Plugin services)
-    └── Annotations (@Plugin, @Extension, @EventHandler)
+    └── Annotations (@Plugin, @Extension, @ExtensionPoint, @EventHandler)
 ```
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Maven Dependency
 
@@ -73,7 +74,7 @@ Add JitPack repository and dependency to your `pom.xml`:
     <dependency>
         <groupId>com.github.kitakeyos-dev</groupId>
         <artifactId>plugin4j</artifactId>
-        <version>v1.0.0</version>
+        <version>v1.0.1</version>
     </dependency>
 </dependencies>
 ```
@@ -88,30 +89,54 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.kitakeyos-dev:plugin4j:v1.0.0'
+    implementation 'com.github.kitakeyos-dev:plugin4j:v1.0.1'
 }
 ```
 
 ### 1. Setup Plugin Manager
 
 ```java
-// Basic setup
+// Basic setup (no updates)
 File pluginDirectory = new File("plugins");
 EventBus eventBus = new EventBus();
 PluginManager pluginManager = new PluginManager(pluginDirectory, eventBus);
-
-// With update support
-File updateDirectory = new File("plugin-updates");
-PluginManager pluginManager = new PluginManager(
-    pluginDirectory, updateDirectory, eventBus
-);
 
 // Load and enable all plugins
 pluginManager.loadAllPlugins();
 pluginManager.enableAllPlugins();
 ```
 
-### 2. Create a Plugin
+### 2. Standalone Plugin Updates
+
+```java
+// Setup independent update management
+File pluginDirectory = new File("plugins");
+File updateDirectory = new File("plugin-updates");
+PluginLoader loader = new PluginLoader();
+
+// Create update manager with default configuration
+PluginUpdateManager updateManager = new PluginUpdateManager(
+    pluginDirectory, updateDirectory, loader
+);
+
+// Check for available updates
+UpdateScanResult scanResult = updateManager.scanForUpdates();
+if (scanResult.hasUpdates()) {
+    System.out.println("Found " + scanResult.getAvailableUpdates().size() + " updates");
+    
+    // Apply all updates
+    UpdateResult result = updateManager.applyAllUpdates();
+    System.out.println("Applied " + result.getUpdatedPlugins().size() + " updates");
+}
+
+// Apply specific updates
+List<UpdateInfo> selectedUpdates = scanResult.getAvailableUpdates().stream()
+    .filter(update -> "MyPlugin".equals(update.getPluginName()))
+    .toList();
+UpdateResult result = updateManager.applyUpdates(selectedUpdates);
+```
+
+### 3. Create a Plugin
 
 ```java
 @Plugin(
@@ -131,9 +156,6 @@ public class MyPlugin extends BasePlugin {
     
     @Override
     public void onEnable() {
-        // Register event handlers
-        getContext().getEventBus().register(this);
-        
         // Schedule repeating task
         getContext().scheduleRepeatingTask(() -> {
             System.out.println("Periodic task running");
@@ -149,7 +171,6 @@ public class MyPlugin extends BasePlugin {
     
     @Override
     public void onDisable() {
-        getContext().getEventBus().unregister(this);
         System.out.println("Plugin disabled!");
     }
     
@@ -160,7 +181,7 @@ public class MyPlugin extends BasePlugin {
 }
 ```
 
-### 3. Plugin Configuration (plugin.ini)
+### 4. Plugin Configuration (plugin.ini)
 
 ```ini
 name=MyPlugin
@@ -171,7 +192,146 @@ main=com.example.MyPlugin
 dependencies=RequiredPlugin,AnotherPlugin
 ```
 
-## 🔧 Advanced Usage
+## Advanced Usage
+
+### Update Management with Custom Configuration
+
+```java
+import me.kitakeyos.plugin.config.UpdateConfig;
+
+// Create custom update configuration
+UpdateConfig customConfig = new UpdateConfig(
+    false,  // Don't check version constraints (force update)
+    true,   // Create backups
+    true,   // Auto cleanup backups
+    true,   // Cleanup update files
+    10 * 24 * 60 * 60 * 1000L  // Keep backups for 10 days
+);
+
+// Create update manager with custom config
+PluginUpdateManager updateManager = new PluginUpdateManager(
+    pluginDirectory, updateDirectory, loader, customConfig
+);
+
+// Or use predefined configurations
+UpdateConfig defaultConfig = UpdateConfig.defaultConfig();       // Safe updates
+UpdateConfig forceConfig = UpdateConfig.forceUpdateConfig();     // Force updates
+UpdateConfig noBackupConfig = UpdateConfig.noBackupConfig();     // No backups
+```
+
+### Async Updates with Progress Monitoring
+
+```java
+// Setup progress monitoring
+updateManager.setProgressCallback(progress -> {
+    switch (progress.getType()) {
+        case SCANNING:
+            System.out.println("Scanning for updates...");
+            break;
+        case APPLYING:
+            System.out.println("Applying " + progress.getTotal() + " updates...");
+            break;
+        case PROCESSING:
+            System.out.printf("Processing %s (%d/%d)\n", 
+                progress.getCurrentPlugin(), 
+                progress.getCurrent(), 
+                progress.getTotal());
+            break;
+        case COMPLETED:
+            System.out.println("Update completed!");
+            break;
+    }
+});
+
+// Setup log callback
+updateManager.setLogCallback(message -> {
+    System.out.println("[UPDATE] " + message);
+});
+
+// Async update
+CompletableFuture<UpdateResult> future = updateManager.applyAllUpdatesAsync();
+future.thenAccept(result -> {
+    System.out.println("Update finished: " + result);
+}).exceptionally(throwable -> {
+    System.err.println("Update failed: " + throwable.getMessage());
+    return null;
+});
+```
+
+### Backup Management
+
+```java
+// List available backups
+List<BackupInfo> backups = updateManager.listBackups();
+backups.forEach(backup -> {
+    System.out.println("Plugin: " + backup.getPluginName() + 
+                      ", Timestamp: " + backup.getTimestamp());
+});
+
+// Rollback a plugin
+boolean success = updateManager.rollbackPlugin("MyPlugin");
+if (success) {
+    System.out.println("Plugin rolled back successfully");
+} else {
+    System.out.println("Rollback failed - no backup found");
+}
+
+// Cleanup old backups
+int cleaned = updateManager.cleanupOldBackups();
+System.out.println("Cleaned up " + cleaned + " old backups");
+
+// Get update statistics
+UpdateStats stats = updateManager.getUpdateStats();
+System.out.println("Available updates: " + stats.getAvailableUpdates());
+System.out.println("Backup count: " + stats.getBackupCount());
+```
+
+### Integration Example
+
+```java
+public class ApplicationWithPlugins {
+    public static void main(String[] args) {
+        File pluginDir = new File("plugins");
+        File updateDir = new File("updates");
+        
+        // Initialize components
+        EventBus eventBus = new EventBus();
+        PluginLoader loader = new PluginLoader();
+        PluginManager pluginManager = new PluginManager(pluginDir, eventBus);
+        
+        // Setup update management
+        PluginUpdateManager updateManager = new PluginUpdateManager(
+            pluginDir, updateDir, loader, UpdateConfig.defaultConfig()
+        );
+        
+        // Set up progress monitoring
+        updateManager.setProgressCallback(progress -> {
+            System.out.println("Update progress: " + progress.getMessage());
+        });
+        
+        // Check and apply updates before loading plugins
+        System.out.println("Checking for plugin updates...");
+        UpdateResult updateResult = updateManager.applyAllUpdates();
+        
+        if (updateResult.hasUpdates()) {
+            System.out.println("Applied " + updateResult.getUpdatedPlugins().size() + " updates");
+        }
+        
+        // Load and enable all plugins
+        pluginManager.loadAllPlugins();
+        pluginManager.enableAllPlugins();
+        
+        System.out.println("Application started with " + 
+            pluginManager.getLoadedPlugins().size() + " plugins");
+        
+        // Graceful shutdown
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            updateManager.shutdown();
+            pluginManager.shutdown();
+        }));
+    }
+}
+```
 
 ### Hot Reload Setup
 
@@ -231,37 +391,14 @@ for (CommandProcessor processor : processors) {
 }
 ```
 
-### State Preservation in Hot Reload
-
-```java
-public class MyStatefulPlugin extends BasePlugin implements StatefulPlugin {
-    private Map<String, String> inMemoryData = new HashMap<>();
-    
-    @Override
-    public Map<String, Object> saveState() {
-        Map<String, Object> state = new HashMap<>();
-        state.put("inMemoryData", inMemoryData);
-        state.put("lastProcessedTime", System.currentTimeMillis());
-        return state;
-    }
-    
-    @Override
-    public void loadState(Map<String, Object> state) {
-        inMemoryData = (Map<String, String>) state.get("inMemoryData");
-        Long lastTime = (Long) state.get("lastProcessedTime");
-        System.out.println("Restored state from: " + new Date(lastTime));
-    }
-}
-```
-
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 project-root/
 ├── plugins/                    # Plugin JAR files
 │   ├── MyPlugin-1.0.0.jar
 │   └── AnotherPlugin-2.1.0.jar
-├── plugin-updates/             # Plugin updates (optional)
+├── updates/                    # Plugin updates (for update system)
 │   └── MyPlugin-1.1.0.jar
 ├── plugin-data/                # Plugin configurations & data
 │   ├── MyPlugin/
@@ -272,30 +409,68 @@ project-root/
 │   ├── MyPlugin.state
 │   └── AnotherPlugin.state
 └── plugin-backups/             # Update backups
-    └── MyPlugin-1678901234-backup.jar
+    └── MyPlugin-20231201-143052-backup.jar
 ```
 
-## 🔄 Plugin Lifecycle
+## Plugin Update Options
 
-1. **Discovery** - Scan plugin directory for JAR files
-2. **Metadata Loading** - Extract plugin.ini or @Plugin annotation
-3. **Dependency Resolution** - Sort plugins by dependency order
-4. **Loading** - Create plugin instances and call `onLoad()`
-5. **Registration** - Register with plugin registry
-6. **Enabling** - Call `onEnable()` and register event handlers
-7. **Runtime** - Plugin is active and processing events
-8. **Disabling** - Call `onDisable()` and cleanup
-9. **Unloading** - Call `onUnload()` and remove from registry
+### Update Configurations
 
-## ⚡ Performance Features
+```java
+// Default configuration (recommended for production)
+UpdateConfig.defaultConfig()
+    - Version checking: enabled
+    - Create backups: enabled  
+    - Auto cleanup backups: disabled
+    - Cleanup update files: enabled
+    - Max backup age: 7 days
+
+// Force update configuration (for development/testing)
+UpdateConfig.forceUpdateConfig()
+    - Version checking: disabled
+    - Create backups: enabled
+    - Auto cleanup backups: disabled  
+    - Cleanup update files: enabled
+    - Max backup age: 7 days
+
+// No backup configuration (for minimal setups)
+UpdateConfig.noBackupConfig()
+    - Version checking: enabled
+    - Create backups: disabled
+    - Auto cleanup backups: disabled
+    - Cleanup update files: enabled
+    - Max backup age: 0 (no backups)
+```
+
+### Update Operations
+
+```java
+// Scan for updates without applying
+UpdateScanResult scan = updateManager.scanForUpdates();
+
+// Apply all available updates
+UpdateResult result = updateManager.applyAllUpdates();
+
+// Apply specific updates
+List<UpdateInfo> selectedUpdates = scan.getAvailableUpdates().stream()
+    .filter(update -> someCondition(update))
+    .toList();
+UpdateResult result = updateManager.applyUpdates(selectedUpdates);
+
+// Async operations
+CompletableFuture<UpdateResult> asyncResult = updateManager.applyUpdatesAsync(selectedUpdates);
+```
+
+## Performance Features
 
 - **Lazy Loading** - Plugins loaded only when needed
 - **Class Isolation** - Each plugin has isolated class loader
 - **Concurrent Operations** - Thread-safe plugin operations
 - **Memory Management** - Automatic cleanup of unused resources
 - **Caching** - Plugin metadata and configuration caching
+- **Independent Update System** - Updates don't interfere with core plugin management
 
-## 🛡️ Error Handling
+## Error Handling
 
 - **Graceful Degradation** - Failed plugins don't affect others
 - **Rollback Support** - Automatic rollback on update failures
@@ -303,49 +478,7 @@ project-root/
 - **Comprehensive Logging** - Detailed logging for debugging
 - **Validation** - Pre-flight validation before operations
 
-## 📦 Installation & Usage
-
-### Latest Version
-
-Check the latest version on JitPack: [![](https://jitpack.io/v/kitakeyos-dev/plugin4j.svg)](https://jitpack.io/#kitakeyos-dev/plugin4j)
-
-### Version History
-
-- **v1.0.0** - Initial stable release
-- See [Releases](https://github.com/kitakeyos-dev/plugin4j/releases) for full changelog
-
-### Requirements
-
-- Java 8 or higher
-- Maven 3.6+ or Gradle 6.0+ (for building from source)
-
-## 🔧 Configuration
-
-### Hot Reload Configuration
-
-```java
-HotReloadConfig config = HotReloadConfig.builder()
-    .autoReloadEnabled(true)                    // Enable auto-reload
-    .fileChangeDebounceMs(1000)                 // Debounce file changes
-    .maxConcurrentReloads(3)                    // Max concurrent reloads
-    .enableMetrics(true)                        // Collect metrics
-    .enableRollback(true)                       // Enable rollback
-    .defaultShutdownTimeoutMs(10000)           // Shutdown timeout
-    .build();
-```
-
-### Plugin Configuration
-
-```properties
-# Plugin-specific configuration (plugin-data/MyPlugin/config.properties)
-plugin.enabled=true
-plugin.debug=false
-database.url=jdbc:mysql://localhost:3306/mydb
-api.timeout=5000
-feature.experimental=false
-```
-
-## 📋 API Reference
+## API Reference
 
 ### Core Classes
 
@@ -353,6 +486,16 @@ feature.experimental=false
 - **`BasePlugin`** - Abstract base class for all plugins
 - **`PluginContext`** - Provides access to plugin services
 - **`PluginMetadata`** - Plugin information and metadata
+
+### Update Classes
+
+- **`PluginUpdateManager`** - Standalone update management
+- **`UpdateConfig`** - Update behavior configuration (in `me.kitakeyos.plugin.config`)
+- **`UpdateResult`** - Update operation results
+- **`UpdateInfo`** - Information about available updates
+- **`UpdateScanResult`** - Results from scanning for updates
+- **`BackupInfo`** - Information about plugin backups
+- **`UpdateStats`** - Statistics about update system
 
 ### Annotations
 
@@ -366,7 +509,7 @@ feature.experimental=false
 - **`StatefulPlugin`** - For plugins that need state preservation
 - **`HotReloadAware`** - For plugins that support hot reload
 
-## 🧪 Testing
+## Testing
 
 ```java
 @Test
@@ -391,60 +534,73 @@ public void testPluginLifecycle() {
     // Cleanup
     manager.shutdown();
 }
+
+@Test
+public void testPluginUpdates() {
+    File pluginDir = Files.createTempDirectory("test-plugins").toFile();
+    File updateDir = Files.createTempDirectory("test-updates").toFile();
+    PluginLoader loader = new PluginLoader();
+    
+    PluginUpdateManager updateManager = new PluginUpdateManager(pluginDir, updateDir, loader);
+    
+    // Test update scan
+    UpdateScanResult scan = updateManager.scanForUpdates();
+    assertNotNull(scan);
+    
+    // Test update application
+    UpdateResult result = updateManager.applyAllUpdates();
+    assertNotNull(result);
+    
+    updateManager.shutdown();
+}
 ```
 
-## 🚀 Production Deployment
+## Configuration
 
-### Recommended Setup
+### Plugin Configuration
+
+```properties
+# Plugin-specific configuration (plugin-data/MyPlugin/config.properties)
+plugin.enabled=true
+plugin.debug=false
+database.url=jdbc:mysql://localhost:3306/mydb
+api.timeout=5000
+feature.experimental=false
+```
+
+### Hot Reload Configuration
 
 ```java
-// Production configuration
-HotReloadConfig prodConfig = HotReloadConfig.createProduction();
-PluginManager pluginManager = new PluginManager(
-    new File("/opt/app/plugins"),
-    new File("/opt/app/plugin-updates"),
-    new EventBus()
-);
-
-// Setup with hot reload for production
-HotReloadManager hotReloadManager = new HotReloadManager(pluginManager, prodConfig);
-
-// Graceful shutdown
-Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-    hotReloadManager.stopWatching();
-    pluginManager.shutdown();
-}));
+HotReloadConfig config = HotReloadConfig.builder()
+    .autoReloadEnabled(true)                    // Enable auto-reload
+    .fileChangeDebounceMs(1000)                 // Debounce file changes
+    .maxConcurrentReloads(3)                    // Max concurrent reloads
+    .enableMetrics(true)                        // Collect metrics
+    .enableRollback(true)                       // Enable rollback
+    .defaultShutdownTimeoutMs(10000)           // Shutdown timeout
+    .build();
 ```
 
-### Security Considerations
-
-- Plugin JAR files should be validated before deployment
-- Use security manager to restrict plugin permissions
-- Monitor plugin resource usage
-- Regular security audits of plugin dependencies
-
-## 📊 Monitoring & Metrics
+## Monitoring & Metrics
 
 ```java
 // Get system status
 PluginRegistry.RegistryStatus status = pluginManager.getRegistryStatus();
 System.out.println("Total plugins: " + status.getTotal());
-System.out.println("Enabled: " + status.getEnabled());
-System.out.println("Failed: " + status.getError());
+        System.out.println("Enabled: " + status.getEnabled());
+        System.out.println("Failed: " + status.getError());
 
 // Extension point information
-Map<String, ExtensionManager.ExtensionPointInfo> extensionInfo = 
-    pluginManager.getExtensionPointsInfo();
+Map<String, ExtensionManager.ExtensionPointInfo> extensionInfo =
+        pluginManager.getExtensionPointsInfo();
 
-// Update results
-if (pluginManager.isUpdateSupported()) {
-    PluginUpdateManager.UpdateResult result = 
-        pluginManager.checkAndApplyUpdates();
-    System.out.println("Updates applied: " + result.getUpdatedPlugins().size());
-}
+// Update statistics
+UpdateStats stats = updateManager.getUpdateStats();
+System.out.println("Available updates: " + stats.getAvailableUpdates());
+        System.out.println("Backup count: " + stats.getBackupCount());
 ```
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create feature branch: `git checkout -b feature/amazing-feature`
@@ -460,30 +616,18 @@ cd plugin4j
 mvn clean install
 ```
 
-### Using Snapshot Versions
-
-To use the latest development version:
-
-```xml
-<dependency>
-    <groupId>com.github.kitakeyos-dev</groupId>
-    <artifactId>plugin4j</artifactId>
-    <version>master-SNAPSHOT</version>
-</dependency>
-```
-
-## 🔗 Links
+## Links
 
 - **JitPack Repository**: https://jitpack.io/#kitakeyos-dev/plugin4j
 - **GitHub Repository**: https://github.com/kitakeyos-dev/plugin4j
 - **Issues & Bug Reports**: https://github.com/kitakeyos-dev/plugin4j/issues
 - **Releases**: https://github.com/kitakeyos-dev/plugin4j/releases
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - Java NIO for efficient file watching
 - SLF4J for comprehensive logging
@@ -492,4 +636,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Built with ❤️ for the Java plugin development community**
+**Built for the Java plugin development community**
