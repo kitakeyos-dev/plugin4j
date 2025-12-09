@@ -62,7 +62,8 @@ public class PluginManager {
         this.extensionManager = new ExtensionManager();
 
         // Initialize services
-        this.configManager = createConfigManager();
+        File configDirectory = new File(pluginDirectory.getParent(), "plugin-data");
+        this.configManager = new ConfigManager(configDirectory);
         this.scheduler = new TaskScheduler();
 
         // Configure manager relationships
@@ -86,14 +87,6 @@ public class PluginManager {
      */
     private File validatePluginDirectory(File pluginDirectory) {
         return Objects.requireNonNull(pluginDirectory, "Plugin directory cannot be null");
-    }
-
-    /**
-     * Creates and configures the config manager
-     */
-    private ConfigManager createConfigManager() {
-        File configDirectory = new File(pluginDirectory.getParent(), "plugin-data");
-        return new ConfigManager(configDirectory);
     }
 
     // =================== CORE PLUGIN LIFECYCLE ===================
@@ -164,8 +157,7 @@ public class PluginManager {
                     pluginName,
                     eventBus,
                     scheduler,
-                    configManager.getConfig(pluginName)
-            );
+                    configManager.getConfig(pluginName));
 
             // Initialize plugin
             plugin.setContext(context);
@@ -188,7 +180,7 @@ public class PluginManager {
      *
      * @param pluginName Name of the plugin to load
      * @return true if loaded successfully
-     * @throws PluginNotFoundException if plugin file is not found
+     * @throws PluginNotFoundException  if plugin file is not found
      * @throws PluginOperationException if loading fails
      */
     public boolean loadPlugin(String pluginName) {

@@ -1,0 +1,59 @@
+# Maven
+target/
+!.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
+
+### IntelliJ IDEA ###
+.idea/modules.xml
+.idea/jarRepositories.xml
+.idea/compiler.xml
+.idea/libraries/
+*.iws
+*.iml
+*.ipr
+
+### Eclipse ###
+.apt_generated
+.classpath
+.factorypath
+.project
+.settings
+.springBeans
+.sts4-cache
+
+### NetBeans ###
+/nbproject/private/
+/nbbuild/
+/dist/
+/nbdist/
+/.nb-gradle/
+build/
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+### VS Code ###
+.vscode/
+
+### Mac OS ###
+.DS_Store
+
+# Plugin System Specific
+plugins/
+plugin-data/
+plugin-states/
+plugin-backups/
+plugin-updates/
+plugin-temp/
+
+# Logs
+*.log
+logs/
+
+# Test plugins (optional - uncomment if you don't want to commit test plugins)
+# test-plugins/
+# example-plugins/
+
+# Runtime directories
+temp/
+cache/

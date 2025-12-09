@@ -40,16 +40,18 @@ public class PluginUpdateManager {
     private Consumer<String> logCallback;
 
     public PluginUpdateManager(File pluginDirectory, File updateDirectory, PluginLoader loader) {
-        this(pluginDirectory, updateDirectory, loader, UpdateConfig.defaultConfig());
+        this(pluginDirectory, updateDirectory, new File(pluginDirectory.getParent(), "plugin-backups"), loader,
+                UpdateConfig.defaultConfig());
     }
 
-    public PluginUpdateManager(File pluginDirectory, File updateDirectory, PluginLoader loader, UpdateConfig config) {
+    public PluginUpdateManager(File pluginDirectory, File updateDirectory, File backupDirectory, PluginLoader loader,
+            UpdateConfig config) {
         this.pluginDirectory = Objects.requireNonNull(pluginDirectory, "Plugin directory cannot be null");
         this.updateDirectory = Objects.requireNonNull(updateDirectory, "Update directory cannot be null");
+        this.backupDirectory = Objects.requireNonNull(backupDirectory, "Backup directory cannot be null");
         this.loader = Objects.requireNonNull(loader, "Plugin loader cannot be null");
         this.config = Objects.requireNonNull(config, "Update config cannot be null");
 
-        this.backupDirectory = new File(pluginDirectory.getParent(), "plugin-backups");
         this.updateExecutor = Executors.newSingleThreadExecutor(r -> {
             Thread t = new Thread(r, "PluginUpdater");
             t.setDaemon(true);
@@ -200,8 +202,8 @@ public class PluginUpdateManager {
      * Rollback a plugin to its backup
      */
     public boolean rollbackPlugin(String pluginName) {
-        File[] backupFiles = backupDirectory.listFiles((dir, name) ->
-                name.startsWith(pluginName + "-") && name.endsWith("-backup.jar"));
+        File[] backupFiles = backupDirectory
+                .listFiles((dir, name) -> name.startsWith(pluginName + "-") && name.endsWith("-backup.jar"));
 
         if (backupFiles == null || backupFiles.length == 0) {
             logMessage("No backup found for plugin: " + pluginName);
@@ -286,8 +288,7 @@ public class PluginUpdateManager {
                 updateFiles != null ? updateFiles.length : 0,
                 backupFiles != null ? backupFiles.length : 0,
                 updateDirectorySize,
-                backupDirectorySize
-        );
+                backupDirectorySize);
     }
 
     // Private helper methods
@@ -389,7 +390,8 @@ public class PluginUpdateManager {
 
     private File findExistingPluginFile(String pluginName) {
         File[] jarFiles = pluginDirectory.listFiles((dir, name) -> name.endsWith(".jar"));
-        if (jarFiles == null) return null;
+        if (jarFiles == null)
+            return null;
 
         for (File jarFile : jarFiles) {
             try {
@@ -411,7 +413,8 @@ public class PluginUpdateManager {
                     StandardCopyOption.COPY_ATTRIBUTES);
             return true;
         } catch (IOException e) {
-            logMessage("Failed to copy file from " + source.getName() + " to " + destination.getName() + ": " + e.getMessage());
+            logMessage("Failed to copy file from " + source.getName() + " to " + destination.getName() + ": "
+                    + e.getMessage());
             return false;
         }
     }
@@ -452,8 +455,10 @@ public class PluginUpdateManager {
                 int v1Part = i < v1Parts.length ? Integer.parseInt(v1Parts[i]) : 0;
                 int v2Part = i < v2Parts.length ? Integer.parseInt(v2Parts[i]) : 0;
 
-                if (v1Part > v2Part) return true;
-                if (v1Part < v2Part) return false;
+                if (v1Part > v2Part)
+                    return true;
+                if (v1Part < v2Part)
+                    return false;
             }
 
             return false;

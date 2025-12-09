@@ -74,7 +74,7 @@ Add JitPack repository and dependency to your `pom.xml`:
 <dependency>
     <groupId>com.github.kitakeyos-dev</groupId>
     <artifactId>plugin4j</artifactId>
-    <version>v1.0.1</version>
+    <version>v1.0.2</version>
 </dependency>
 </dependencies>
 ```
@@ -89,7 +89,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.kitakeyos-dev:plugin4j:v1.0.1'
+    implementation 'com.github.kitakeyos-dev:plugin4j:v1.0.2'
 }
 ```
 
