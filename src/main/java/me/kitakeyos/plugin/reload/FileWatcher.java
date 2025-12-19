@@ -8,13 +8,15 @@ import java.nio.file.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
  * Monitors file system changes for plugin JAR files
- * Uses Java NIO WatchService for efficient file monitoring with checksum validation
+ * Uses Java NIO WatchService for efficient file monitoring with checksum
+ * validation
  */
 @Slf4j
 public class FileWatcher {
@@ -24,6 +26,13 @@ public class FileWatcher {
     private final ScheduledExecutorService executor;
     private final AtomicBoolean watching = new AtomicBoolean(false);
     private final ConcurrentHashMap<Path, FileInfo> fileStates = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Path, ScheduledFuture<?>> pendingReloads = new ConcurrentHashMap<>();
+
+    /**
+     * Time in milliseconds to wait for file stability before processing.
+     * File must not change during this period to be considered stable.
+     */
+    private static final long FILE_STABILITY_WAIT_MS = 500;
 
     private WatchService watchService;
     private Thread watchThread;
@@ -157,24 +166,104 @@ public class FileWatcher {
             return;
         }
 
-        // Handle create/modify events with debouncing
-        executor.schedule(() -> {
-            try {
-                if (Files.exists(filePath)) {
-                    FileInfo oldInfo = fileStates.get(filePath);
-                    FileInfo newInfo = createFileInfo(filePath);
-
-                    if (oldInfo == null || !oldInfo.equals(newInfo)) {
-                        fileStates.put(filePath, newInfo);
-
-                        log.info("File changed detected: {}", filePath);
-                        changeCallback.accept(filePath);
-                    }
-                }
-            } catch (Exception e) {
-                log.warn("Error processing file change for {}: {}", filePath, e.getMessage());
+        // Atomically cancel existing and schedule new stability check
+        pendingReloads.compute(filePath, (path, existingFuture) -> {
+            if (existingFuture != null) {
+                existingFuture.cancel(false);
+                log.debug("Cancelled pending reload for {} - file still changing", filePath);
             }
-        }, 100, TimeUnit.MILLISECONDS); // Small delay to handle rapid successive writes
+
+            // Schedule stability check - will wait and verify file is stable before
+            // processing
+            return executor.schedule(() -> {
+                checkFileStabilityAndProcess(filePath);
+            }, FILE_STABILITY_WAIT_MS, TimeUnit.MILLISECONDS);
+        });
+    }
+
+    /**
+     * Checks if file is stable (not being written) and processes it.
+     * If file is still changing, reschedules another stability check.
+     *
+     * @param filePath Path of file to check
+     */
+    private void checkFileStabilityAndProcess(Path filePath) {
+        pendingReloads.remove(filePath);
+
+        try {
+            if (!Files.exists(filePath)) {
+                log.debug("File no longer exists, skipping: {}", filePath);
+                return;
+            }
+
+            FileInfo currentInfo = createFileInfo(filePath);
+            FileInfo previousInfo = fileStates.get(filePath);
+
+            // Check if file has changed since we started waiting
+            if (previousInfo != null && previousInfo.equals(currentInfo)) {
+                // File hasn't changed - no need to reload
+                log.debug("File unchanged, skipping reload: {}", filePath);
+                return;
+            }
+
+            // Take a snapshot now and schedule a second check to verify stability
+            final long sizeBefore = Files.size(filePath);
+            final long modifiedBefore = Files.getLastModifiedTime(filePath).toMillis();
+
+            // Non-blocking: schedule second phase check after 200ms
+            executor.schedule(() -> {
+                verifyStabilityAndProcess(filePath, sizeBefore, modifiedBefore);
+            }, 200, TimeUnit.MILLISECONDS);
+
+        } catch (Exception e) {
+            log.warn("Error checking file stability for {}: {}", filePath, e.getMessage());
+        }
+    }
+
+    /**
+     * Second phase of stability check - verifies file hasn't changed since first
+     * snapshot.
+     * If stable, triggers the reload callback. If still changing, reschedules full
+     * check.
+     *
+     * @param filePath       Path of file to verify
+     * @param sizeBefore     File size from first snapshot
+     * @param modifiedBefore Last modified time from first snapshot
+     */
+    private void verifyStabilityAndProcess(Path filePath, long sizeBefore, long modifiedBefore) {
+        try {
+            if (!Files.exists(filePath)) {
+                log.debug("File deleted during stability check: {}", filePath);
+                return;
+            }
+
+            long sizeAfter = Files.size(filePath);
+            long modifiedAfter = Files.getLastModifiedTime(filePath).toMillis();
+
+            if (sizeBefore != sizeAfter || modifiedBefore != modifiedAfter) {
+                // File is still being written, reschedule full stability check
+                log.debug("File still changing, rescheduling stability check: {}", filePath);
+                pendingReloads.compute(filePath, (path, existing) -> {
+                    if (existing != null) {
+                        existing.cancel(false);
+                    }
+                    return executor.schedule(() -> {
+                        checkFileStabilityAndProcess(filePath);
+                    }, FILE_STABILITY_WAIT_MS, TimeUnit.MILLISECONDS);
+                });
+                return;
+            }
+
+            // File is stable, update state and trigger callback
+            FileInfo newInfo = createFileInfo(filePath);
+            fileStates.put(filePath, newInfo);
+
+            log.info("File stable and changed, triggering reload: {}", filePath);
+            changeCallback.accept(filePath);
+
+        } catch (Exception e) {
+            log.warn("Error verifying file stability for {}: {}", filePath, e.getMessage());
+        }
     }
 
     /**
@@ -283,8 +372,10 @@ public class FileWatcher {
 
         @Override
         public boolean equals(Object obj) {
-            if (this == obj) return true;
-            if (obj == null || getClass() != obj.getClass()) return false;
+            if (this == obj)
+                return true;
+            if (obj == null || getClass() != obj.getClass())
+                return false;
 
             FileInfo fileInfo = (FileInfo) obj;
             return size == fileInfo.size &&
